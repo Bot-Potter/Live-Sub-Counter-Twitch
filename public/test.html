@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Overlay - Twitch Sub Count</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: rgba(0,0,0,0);
+      --panel: rgba(10,10,15,0.6);
+      --accent: #a855f7;
+      --text: #fff;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #1a1a1a;
+      font-family: 'Montserrat', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      position: relative;
+    }
+    .overlay-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      border: 2px dashed #444;
+      border-radius: 10px;
+      background: rgba(30, 30, 35, 0.5);
+    }
+    #subCount {
+      font-size: 5rem;
+      font-weight: 800;
+      font-family: 'Montserrat', sans-serif;
+      color: #ffffff;
+      text-shadow: 0 0 18px rgba(0, 0, 0, 0.65);
+      margin: 0;
+    }
+    .controls {
+      background: #2a2a2f;
+      padding: 20px;
+      border-top: 2px solid #444;
+    }
+    .controls h3 {
+      margin: 0 0 15px 0;
+      color: #fff;
+      font-size: 1.2rem;
+    }
+    .control-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+    }
+    .control-group label {
+      color: #aaa;
+      min-width: 100px;
+    }
+    .control-group input {
+      flex: 1;
+      max-width: 200px;
+      padding: 8px 12px;
+      background: #1a1a1f;
+      border: 1px solid #444;
+      border-radius: 5px;
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1rem;
+    }
+    .control-group button {
+      padding: 8px 20px;
+      background: #a855f7;
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .control-group button:hover {
+      background: #9333ea;
+    }
+    .quick-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .quick-buttons button {
+      padding: 8px 16px;
+      background: #444;
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .quick-buttons button:hover {
+      background: #555;
+    }
+    .info {
+      color: #888;
+      font-size: 0.9rem;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #444;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-container">
+    <div class="overlay-preview">
+      <div id="subCount">-- / --</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <h3>🎮 Test Controls</h3>
+    
+    <div class="control-group">
+      <label>Sub Count:</label>
+      <input type="number" id="subInput" value="250" min="0" />
+      <button onclick="updateSubCount()">Uppdatera</button>
+    </div>
+
+    <div class="control-group">
+      <label>Goal:</label>
+      <input type="number" id="goalInput" value="1500" min="1" />
+      <button onclick="updateGoal()">Uppdatera</button>
+    </div>
+
+    <div class="control-group">
+      <label>Snabbtester:</label>
+      <div class="quick-buttons">
+        <button onclick="simulateSub()">+1 Sub</button>
+        <button onclick="simulateGiftSubs(5)">+5 Subs</button>
+        <button onclick="simulateGiftSubs(10)">+10 Subs</button>
+        <button onclick="randomTest()">Random Test</button>
+      </div>
+    </div>
+
+    <div class="info">
+      💡 Detta är en test-sida för att testa animationer. Den påverkar inte live-overlay:en på /overlay.html
+    </div>
+  </div>
+
+  <script>
+    const el = document.getElementById("subCount");
+    const subInput = document.getElementById("subInput");
+    const goalInput = document.getElementById("goalInput");
+
+    let currentValue = 0;
+    let currentGoal = 1500;
+    let isAnimatingSubs = false;
+    let isAnimatingGoal = false;
+
+    function updateDisplay() {
+      const displayValue = isAnimatingSubs ? Math.round(currentValue) : currentValue;
+      const displayGoal = isAnimatingGoal ? Math.round(currentGoal) : currentGoal;
+      el.textContent = `${displayValue} / ${displayGoal}`;
+    }
+
+    function animateCount(from, to, duration = 1000) {
+      if (isAnimatingSubs) return;
+      isAnimatingSubs = true;
+      
+      const startTime = performance.now();
+      const diff = to - from;
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smoother animation (ease-out)
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        currentValue = from + diff * easeProgress;
+        updateDisplay();
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          currentValue = to;
+          isAnimatingSubs = false;
+          updateDisplay();
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function animateGoal(from, to, duration = 1000) {
+      if (isAnimatingGoal) return;
+      isAnimatingGoal = true;
+      
+      const startTime = performance.now();
+      const diff = to - from;
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smoother animation (ease-out)
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        currentGoal = from + diff * easeProgress;
+        updateDisplay();
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          currentGoal = to;
+          isAnimatingGoal = false;
+          updateDisplay();
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function updateSubCount() {
+      const newCount = parseInt(subInput.value);
+      if (isNaN(newCount)) return;
+      
+      if (currentValue === 0) {
+        currentValue = newCount;
+        updateDisplay();
+      } else {
+        animateCount(currentValue, newCount);
+      }
+    }
+
+    function updateGoal() {
+      const newGoal = parseInt(goalInput.value);
+      if (isNaN(newGoal) || newGoal < 1) return;
+      
+      animateGoal(currentGoal, newGoal);
+    }
+
+    function simulateSub() {
+      const newCount = currentValue + 1;
+      subInput.value = newCount;
+      animateCount(currentValue, newCount);
+    }
+
+    function simulateGiftSubs(amount) {
+      const newCount = currentValue + amount;
+      subInput.value = newCount;
+      animateCount(currentValue, newCount, 1500); // Lite längre animation för större hopp
+    }
+
+    function randomTest() {
+      const newCount = Math.floor(Math.random() * 500) + currentValue;
+      subInput.value = newCount;
+      animateCount(currentValue, newCount);
+    }
+
+    // Initialize
+    currentValue = 250;
+    currentGoal = 1500;
+    updateDisplay();
+  </script>
+</body>
+</html>

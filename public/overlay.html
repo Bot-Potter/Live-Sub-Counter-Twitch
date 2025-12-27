@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>Twitch Sub Count Overlay</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: rgba(0,0,0,0);
+      --panel: rgba(10,10,15,0.6);
+      --accent: #a855f7;
+      --text: #fff;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent !important;
+      background-color: transparent !important;
+      font-family: 'Montserrat', sans-serif;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
+    #subCount {
+      font-size: 5rem;
+      font-weight: 800;
+      font-family: 'Montserrat', sans-serif;
+      color: #ffffff;
+      text-shadow: 0 0 18px rgba(0, 0, 0, 0.65);
+      margin:0;
+    }
+  </style>
+</head>
+<body>
+  <div id="subCount">-- / --</div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const el = document.getElementById("subCount");
+    const socket = io();
+    let currentValue = 0;
+    let currentGoal = 1500;
+    let isAnimatingSubs = false;
+    let isAnimatingGoal = false;
+
+    function updateDisplay() {
+      const displayValue = isAnimatingSubs ? Math.round(currentValue) : currentValue;
+      const displayGoal = isAnimatingGoal ? Math.round(currentGoal) : currentGoal;
+      el.textContent = `${displayValue} / ${displayGoal}`;
+    }
+
+    function animateCount(from, to, duration = 1000) {
+      if (isAnimatingSubs) return;
+      isAnimatingSubs = true;
+      
+      const startTime = performance.now();
+      const diff = to - from;
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smoother animation (ease-out)
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        currentValue = from + diff * easeProgress;
+        updateDisplay();
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          currentValue = to;
+          isAnimatingSubs = false;
+          updateDisplay();
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function animateGoal(from, to, duration = 1000) {
+      if (isAnimatingGoal) return;
+      isAnimatingGoal = true;
+      
+      const startTime = performance.now();
+      const diff = to - from;
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smoother animation (ease-out)
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        currentGoal = from + diff * easeProgress;
+        updateDisplay();
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          currentGoal = to;
+          isAnimatingGoal = false;
+          updateDisplay();
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    socket.on("subcount", (count) => {
+      if (typeof count !== "number") {
+        el.textContent = "-- / --";
+        return;
+      }
+      
+      if (currentValue === 0) {
+        // First load - set directly
+        currentValue = count;
+        updateDisplay();
+      } else {
+        // Animate from current to new value
+        animateCount(currentValue, count);
+      }
+    });
+
+    socket.on("goal", (goal) => {
+      if (typeof goal === "number") {
+        const oldGoal = currentGoal;
+        if (oldGoal === 1500 && currentValue === 0) {
+          // First load
+          currentGoal = goal;
+          updateDisplay();
+        } else {
+          // Animate goal change
+          animateGoal(oldGoal, goal);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
